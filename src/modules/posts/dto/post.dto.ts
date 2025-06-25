@@ -1,28 +1,19 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { z } from 'zod';
-import { CreatePostDto as CreatePostSchema, UpdatePostDto as UpdatePostSchema, GetPostByIdDto as GetPostByIdSchema, GetPostsByUserDto as GetPostsByUserSchema } from './post.zod';
-import { PostType } from '../entities/post.entity';
+import { CreatePostDto as CreatePostSchema, UpdatePostDto as UpdatePostSchema, GetPostByIdDto as GetPostByIdSchema } from './post.zod';
+import { PostType, PostVisibility } from '../entities/post.entity';
 
-export class CreatePostDto implements CreatePostSchema {
-  content: string;
-  type?: PostType;
-  media_urls?: string[];
-  metadata?: Record<string, any>;
-  user_id: string;
-}
+// Re-export the Zod types as DTOs
+export type CreatePostDto = CreatePostSchema;
+export type UpdatePostDto = UpdatePostSchema;
+export type GetPostByIdDto = GetPostByIdSchema;
 
-export class UpdatePostDto implements UpdatePostSchema {
-  content?: string;
-  type?: PostType;
-  media_urls?: string[];
-  metadata?: Record<string, any>;
-  is_active?: boolean;
-}
-
-export class GetPostByIdDto implements GetPostByIdSchema {
-  id: string;
-}
-
-export class GetPostsByUserDto implements GetPostsByUserSchema {
+export class GetPostsByUserDto {
+  @ApiProperty({
+    description: 'User ID (UUID)',
+    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+    format: 'uuid',
+  })
   userId: string;
 }
 

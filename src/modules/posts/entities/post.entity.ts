@@ -6,8 +6,16 @@ export enum PostType {
   TEXT = 'text',
   IMAGE = 'image',
   VIDEO = 'video',
-  HEALTH_LOG = 'health_log',
-  ACHIEVEMENT = 'achievement'
+  ACHIEVEMENT = 'achievement',
+  WORKOUT = 'workout',
+  MEAL = 'meal',
+  PROGRESS = 'progress'
+}
+
+export enum PostVisibility {
+  PUBLIC = 'public',
+  FRIENDS = 'friends',
+  PRIVATE = 'private'
 }
 
 @Entity('posts')
@@ -21,17 +29,26 @@ export class Post {
   @Column({ type: 'enum', enum: PostType, default: PostType.TEXT })
   type: PostType;
 
-  @Column({ type: 'text', array: true, nullable: true })
-  media_urls: string[];
+  @Column({ type: 'enum', enum: PostVisibility, default: PostVisibility.PUBLIC })
+  visibility: PostVisibility;
 
   @Column({ type: 'json', nullable: true })
-  metadata: Record<string, any>;
+  media_urls: string[]; // images, videos, etc.
+
+  @Column({ type: 'json', nullable: true })
+  tags: string[]; // hashtags, user mentions
+
+  @Column({ type: 'json', nullable: true })
+  metadata: Record<string, any>; // workout details, meal info, etc.
 
   @Column({ type: 'int', default: 0 })
   likes_count: number;
 
   @Column({ type: 'int', default: 0 })
   comments_count: number;
+
+  @Column({ type: 'int', default: 0 })
+  shares_count: number;
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
@@ -46,9 +63,35 @@ export class Post {
   @OneToMany(() => Comment, (comment) => comment.post)
   comments: Comment[];
 
+  @OneToMany(() => PostLike, (like) => like.post)
+  likes: PostLike[];
+
   @CreateDateColumn()
   created_at: Date;
 
   @UpdateDateColumn()
   updated_at: Date;
+}
+
+@Entity('post_likes')
+export class PostLike {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @ManyToOne(() => Post, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'post_id' })
+  post: Post;
+
+  @Column({ type: 'uuid' })
+  post_id: string;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
+
+  @Column({ type: 'uuid' })
+  user_id: string;
+
+  @CreateDateColumn()
+  created_at: Date;
 }
