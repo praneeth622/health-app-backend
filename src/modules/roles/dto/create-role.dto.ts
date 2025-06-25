@@ -9,7 +9,7 @@ export class UpdateRoleDto implements ZodUpdateRoleDto {
 }
 
 export class GetRoleByIdDto implements ZodGetRoleByIdDto {
-  id: number;
+  id: string;
 }
 
 export class RoleResponseDto {

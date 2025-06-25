@@ -12,13 +12,13 @@ export class RolesService {
   ) {}
 
   async create(createRoleDto: CreateRoleDto): Promise<Role> {
-    // Check if role already exists
+    // Check if role with same name already exists
     const existingRole = await this.roleRepository.findOne({
       where: { name: createRoleDto.name },
     });
 
     if (existingRole) {
-      throw new ConflictException(`Role '${createRoleDto.name}' already exists`);
+      throw new ConflictException(`Role with name '${createRoleDto.name}' already exists`);
     }
 
     const role = this.roleRepository.create(createRoleDto);
@@ -26,12 +26,26 @@ export class RolesService {
   }
 
   async findAll(): Promise<Role[]> {
-    return await this.roleRepository.find();
+    return await this.roleRepository.find({
+      order: { created_at: 'DESC' },
+    });
   }
 
-  async findOne(id: number): Promise<Role> {
+  async findOne(id: string): Promise<Role> {
     const role = await this.roleRepository.findOne({
       where: { id },
+      relations: ['user_roles', 'user_roles.user'],
+      select: {
+        user_roles: {
+          id: true,
+          is_active: true,
+          user: {
+            id: true,
+            name: true,
+            email: true,
+          }
+        }
+      }
     });
 
     if (!role) {
@@ -41,17 +55,17 @@ export class RolesService {
     return role;
   }
 
-  async update(id: number, updateRoleDto: UpdateRoleDto): Promise<Role> {
+  async update(id: string, updateRoleDto: UpdateRoleDto): Promise<Role> {
     const role = await this.findOne(id);
 
-    // Check if new name already exists (if updating name)
+    // Check if updating name and it conflicts with existing role
     if (updateRoleDto.name && updateRoleDto.name !== role.name) {
       const existingRole = await this.roleRepository.findOne({
         where: { name: updateRoleDto.name },
       });
 
       if (existingRole) {
-        throw new ConflictException(`Role '${updateRoleDto.name}' already exists`);
+        throw new ConflictException(`Role with name '${updateRoleDto.name}' already exists`);
       }
     }
 
@@ -59,7 +73,7 @@ export class RolesService {
     return await this.roleRepository.save(role);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: string): Promise<void> {
     const role = await this.findOne(id);
     await this.roleRepository.remove(role);
   }

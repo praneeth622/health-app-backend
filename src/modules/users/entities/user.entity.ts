@@ -1,40 +1,60 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-import { Role } from '../../roles/entities/role.entity';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { HealthLog } from '../../health-logs/entities/health-log.entity';
+import { Challenge } from '../../challenges/entities/challenge.entity';
+import { UserRole } from '../../user-roles/entities/user-role.entity';
 
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 255, unique: true })
-  email: string;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
+  @Column({ type: 'varchar', length: 100 })
   name: string;
 
-  @Column({ type: 'text', nullable: true })
-  password_hash: string;
+  @Column({ type: 'varchar', length: 150, unique: true })
+  email: string;
+
+  @Column({ type: 'varchar', length: 255 })
+  password: string;
+
+  @Column({ type: 'date', nullable: true })
+  date_of_birth: Date;
+
+  @Column({ type: 'enum', enum: ['male', 'female', 'other'], nullable: true })
+  gender: 'male' | 'female' | 'other';
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  height: number;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  weight: number;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  activity_level: string;
+
+  @Column({ type: 'json', nullable: true })
+  health_goals: Record<string, any>;
+
+  @Column({ type: 'json', nullable: true })
+  medical_conditions: Record<string, any>;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  profile_image: string;
 
   @Column({ type: 'text', nullable: true })
   bio: string;
 
-  @Column({ type: 'text', nullable: true })
-  profile_image: string;
+  @Column({ type: 'boolean', default: true })
+  is_active: boolean;
 
-  @Column({ type: 'text', nullable: true })
-  cover_image: string;
+  @OneToMany(() => HealthLog, (healthLog) => healthLog.user)
+  health_logs: HealthLog[];
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  fitness_goal: string;
+  @ManyToMany(() => Challenge, (challenge) => challenge.participants)
+  challenges: Challenge[];
 
-  @Column({ type: 'text', array: true, nullable: true })
-  interests: string[];
-
-  @ManyToOne(() => Role, (role) => role.users, { nullable: true })
-  role: Role;
-
-  @Column({ type: 'int', nullable: true })
-  role_id: number;
+  @OneToMany(() => UserRole, (userRole) => userRole.user)
+  user_roles: UserRole[];
 
   @CreateDateColumn()
   created_at: Date;
