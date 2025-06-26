@@ -9,16 +9,9 @@ export const typeOrmConfig = (configService: ConfigService): TypeOrmModuleOption
   password: configService.get('DB_PASS'),
   database: configService.get('DB_NAME'),
   entities: [__dirname + '/../**/*.entity.{ts,js}'],
-  synchronize: configService.get('NODE_ENV') !== 'production', // ⚠️ Turn off in production
-  logging: configService.get('NODE_ENV') === 'development',
-  ssl: configService.get('NODE_ENV') === 'production' ? {
+  synchronize: true, // turn off in production
+  logging: process.env.NODE_ENV === 'development',
+  ssl: {
     rejectUnauthorized: false,
-  } : false,
-  // Add connection pooling for production
-  extra: {
-    max: 20,
-    min: 5,
-    acquire: 30000,
-    idle: 10000,
   },
 });
