@@ -59,9 +59,10 @@ export class UsersController {
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
   @ApiResponse({ status: 409, description: 'User already exists' })
-  @UsePipes(new ZodValidationPipe(createUserSchema))
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createUserDto: CreateUserDto) {
+  async create(
+    @Body(new ZodValidationPipe(createUserSchema)) createUserDto: any, // Use 'any' instead of CreateUserDto
+  ) {
     const user = await this.usersService.create(createUserDto);
     const { password, ...userResponse } = user;
     return userResponse;

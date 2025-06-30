@@ -1,5 +1,4 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
@@ -7,15 +6,6 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
-  // Global validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
-
   // Enable CORS
   app.enableCors();
 
@@ -48,6 +38,7 @@ async function bootstrap() {
   
   await app.listen(port);
   console.log(`🚀 Health App Backend running on port ${port}`);
-  console.log(`📖 Swagger documentation available at http://localhost:${port}/api/docs`);
+  console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
 }
+
 bootstrap();
