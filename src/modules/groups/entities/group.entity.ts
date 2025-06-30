@@ -42,7 +42,7 @@ export class Group {
   name: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description?: string;
 
   @Column({ type: 'enum', enum: GroupType, default: GroupType.PUBLIC })
   type: GroupType;
@@ -51,31 +51,31 @@ export class Group {
   category: GroupCategory;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
-  image_url: string;
+  image_url?: string;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
-  cover_image_url: string;
+  cover_image_url?: string;
 
   @Column({ type: 'json', nullable: true })
-  rules: string[]; // Group rules
+  rules?: string[];
 
   @Column({ type: 'json', nullable: true })
-  tags: string[]; // Searchable tags
+  tags?: string[];
 
   @Column({ type: 'int', default: 0 })
   member_count: number;
 
   @Column({ type: 'int', nullable: true })
-  max_members: number; // Optional member limit
+  max_members?: number;
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
 
   @Column({ type: 'boolean', default: false })
-  is_featured: boolean; // Featured groups for discovery
+  is_featured: boolean;
 
   @Column({ type: 'json', nullable: true })
-  settings: Record<string, any>; // Group settings like posting permissions
+  settings?: Record<string, any>;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'owner_id' })
@@ -113,14 +113,15 @@ export class GroupMembership {
   @Column({ type: 'enum', enum: MembershipStatus, default: MembershipStatus.PENDING })
   status: MembershipStatus;
 
+  // 🔧 Fix: Make joined_at properly nullable
   @Column({ type: 'timestamp', nullable: true })
-  joined_at: Date;
+  joined_at?: Date | null;
 
   @Column({ type: 'text', nullable: true })
-  join_message: string; // Message when requesting to join
+  join_message?: string;
 
   @Column({ type: 'json', nullable: true })
-  permissions: Record<string, boolean>; // Custom permissions
+  permissions?: Record<string, boolean>;
 
   @ManyToOne(() => Group, group => group.memberships, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'group_id' })
@@ -153,7 +154,7 @@ export class GroupPost {
   content: string;
 
   @Column({ type: 'json', nullable: true })
-  media_urls: string[]; // Images, videos
+  media_urls?: string[];
 
   @Column({ type: 'boolean', default: false })
   is_pinned: boolean;
@@ -168,7 +169,7 @@ export class GroupPost {
   comments_count: number;
 
   @Column({ type: 'json', nullable: true })
-  tags: string[]; // Post tags
+  tags?: string[];
 
   @ManyToOne(() => Group, group => group.posts, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'group_id' })
@@ -201,22 +202,22 @@ export class GroupEvent {
   title: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description?: string;
 
   @Column({ type: 'timestamp' })
   start_date: Date;
 
   @Column({ type: 'timestamp', nullable: true })
-  end_date: Date;
+  end_date?: Date;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
-  location: string; // Physical or virtual location
+  location?: string;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
-  image_url: string;
+  image_url?: string;
 
   @Column({ type: 'int', nullable: true })
-  max_participants: number;
+  max_participants?: number;
 
   @Column({ type: 'int', default: 0 })
   participants_count: number;
@@ -225,7 +226,7 @@ export class GroupEvent {
   is_active: boolean;
 
   @Column({ type: 'json', nullable: true })
-  requirements: string[]; // Event requirements
+  requirements?: string[];
 
   @ManyToOne(() => Group, group => group.events, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'group_id' })
@@ -261,7 +262,7 @@ export class GroupEventParticipant {
   status: string;
 
   @Column({ type: 'text', nullable: true })
-  notes: string;
+  notes?: string;
 
   @ManyToOne(() => GroupEvent, event => event.participants, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'event_id' })
