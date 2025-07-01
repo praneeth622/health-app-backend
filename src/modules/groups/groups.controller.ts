@@ -9,6 +9,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,18 +18,26 @@ import {
   ApiParam,
   ApiBody,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { GroupsService } from './groups.service';
 import { CreateGroupDto, GroupType, GroupCategory } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { JoinGroupDto } from './dto/join-group.dto';
+// 🔧 Import auth components
+import { SupabaseAuthGuard } from '../../auth/guards/supabase-auth.guard';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { User } from '../users/entities/user.entity';
 
 @ApiTags('groups')
 @Controller('groups')
 export class GroupsController {
   constructor(private readonly groupsService: GroupsService) {}
 
+  // 🔧 Protect group creation
   @Post()
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new group' })
   @ApiBody({ type: CreateGroupDto })
   @ApiResponse({
@@ -66,12 +75,18 @@ export class GroupsController {
     }
   })
   @ApiResponse({ status: 400, description: 'Invalid input data' })
-  @ApiResponse({ status: 404, description: 'Owner user not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createGroupDto: CreateGroupDto) {
+  create(
+    @Body() createGroupDto: CreateGroupDto,
+    @CurrentUser() currentUser: User,
+  ) {
+    // 🔧 Automatically set the current user as owner
+    createGroupDto.owner_id = currentUser.id;
     return this.groupsService.create(createGroupDto);
   }
 
+  // 🔧 Keep groups listing public
   @Get()
   @ApiOperation({ summary: 'Get all groups with filtering and pagination' })
   @ApiQuery({
@@ -146,6 +161,7 @@ export class GroupsController {
     return this.groupsService.findAll(page, limit, category, type, search);
   }
 
+  // 🔧 Keep individual group view public
   @Get(':id')
   @ApiOperation({ summary: 'Get group by ID' })
   @ApiParam({ name: 'id', description: 'Group ID (UUID)', type: 'string' })
@@ -200,7 +216,10 @@ export class GroupsController {
     return this.groupsService.findOne(id);
   }
 
+  // 🔧 Protect group updates - only owner/admin can update
   @Patch(':id')
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update group by ID' })
   @ApiParam({ name: 'id', description: 'Group ID (UUID)', type: 'string' })
   @ApiBody({ type: UpdateGroupDto })
@@ -220,22 +239,36 @@ export class GroupsController {
   })
   @ApiResponse({ status: 404, description: 'Group not found' })
   @ApiResponse({ status: 403, description: 'Not authorized to update this group' })
-  update(@Param('id') id: string, @Body() updateGroupDto: UpdateGroupDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateGroupDto: UpdateGroupDto,
+    @CurrentUser() currentUser: User,
+  ) {
+    // 🔧 You'll need to add authorization logic in service
     return this.groupsService.update(id, updateGroupDto);
   }
 
+  // 🔧 Protect group deletion
   @Delete(':id')
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete (deactivate) group by ID' })
   @ApiParam({ name: 'id', description: 'Group ID (UUID)', type: 'string' })
   @ApiResponse({ status: 204, description: 'Group deleted successfully' })
   @ApiResponse({ status: 404, description: 'Group not found' })
   @ApiResponse({ status: 403, description: 'Not authorized to delete this group' })
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@Param('id') id: string) {
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() currentUser: User,
+  ) {
     return this.groupsService.remove(id);
   }
 
+  // 🔧 Protect group joining
   @Post(':id/join')
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Join a group' })
   @ApiParam({ name: 'id', description: 'Group ID (UUID)', type: 'string' })
   @ApiBody({ type: JoinGroupDto })
@@ -259,10 +292,17 @@ export class GroupsController {
   @ApiResponse({ status: 409, description: 'User is already a member' })
   @ApiResponse({ status: 403, description: 'Group is at maximum capacity' })
   @HttpCode(HttpStatus.CREATED)
-  joinGroup(@Param('id') id: string, @Body() joinGroupDto: JoinGroupDto) {
+  joinGroup(
+    @Param('id') id: string,
+    @Body() joinGroupDto: JoinGroupDto,
+    @CurrentUser() currentUser: User,
+  ) {
+    // 🔧 Automatically set the current user as the one joining
+    joinGroupDto.user_id = currentUser.id;
     return this.groupsService.joinGroup(id, joinGroupDto);
   }
 
+  // 🔧 Keep members list public (optional: you might want to protect this)
   @Get(':id/members')
   @ApiOperation({ summary: 'Get group members' })
   @ApiParam({ name: 'id', description: 'Group ID (UUID)', type: 'string' })

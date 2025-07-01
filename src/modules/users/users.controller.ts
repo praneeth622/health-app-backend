@@ -10,6 +10,7 @@ import {
   UsePipes,
   HttpStatus,
   HttpCode,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,6 +19,7 @@ import {
   ApiParam,
   ApiBody,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
@@ -27,12 +29,17 @@ import {
   updateUserSchema,
   getUserByIdSchema,
 } from './dto/user.zod';
+// 🔧 Import auth components
+import { SupabaseAuthGuard } from '../../auth/guards/supabase-auth.guard';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { User } from './entities/user.entity';
 
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  // 🔧 Keep this endpoint public for webhook user creation
   @Post()
   @ApiOperation({ summary: 'Create a new user' })
   @ApiBody({ type: CreateUserDto })
@@ -61,14 +68,17 @@ export class UsersController {
   @ApiResponse({ status: 409, description: 'User already exists' })
   @HttpCode(HttpStatus.CREATED)
   async create(
-    @Body(new ZodValidationPipe(createUserSchema)) createUserDto: any, // Use 'any' instead of CreateUserDto
+    @Body(new ZodValidationPipe(createUserSchema)) createUserDto: any,
   ) {
     const user = await this.usersService.create(createUserDto);
     const { password, ...userResponse } = user;
     return userResponse;
   }
 
+  // 🔧 Protect this endpoint with auth
   @Get()
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users' })
   @ApiQuery({
     name: 'page',
@@ -105,19 +115,22 @@ export class UsersController {
       },
     },
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async findAll(
     @Query('page') page: string = '1',
     @Query('limit') limit: string = '20',
+    @CurrentUser() currentUser: User, // 🔧 Inject current user
   ) {
     const pageNum = parseInt(page) || 1;
     const limitNum = parseInt(limit) || 20;
     const result = await this.usersService.findAll(pageNum, limitNum);
-
-    // Remove password from all users (it's already excluded in service)
     return result;
   }
 
+  // 🔧 Protect and allow users to get their own profile or any profile
   @Get(':id')
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiParam({ name: 'id', description: 'User ID (UUID)', type: 'string' })
   @ApiResponse({
@@ -146,14 +159,19 @@ export class UsersController {
     },
   })
   @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   @UsePipes(new ZodValidationPipe(getUserByIdSchema))
-  async findOne(@Param() params: { id: string }) {
-    const user = await this.usersService.findOne(params.id);
-    const { password, ...userResponse } = user;
-    return userResponse;
+  async findOne(
+    @Param() params: { id: string },
+    @CurrentUser() currentUser: User,
+  ) {
+    return this.usersService.findOne(params.id);
   }
 
+  // 🔧 Allow users to update their own profile
   @Patch(':id')
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Update user by ID' })
   @ApiParam({ name: 'id', description: 'User ID (UUID)', type: 'string' })
   @ApiBody({ type: UpdateUserDto })
@@ -173,24 +191,68 @@ export class UsersController {
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 409, description: 'Email already exists' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Cannot update other users' })
   @UsePipes(new ZodValidationPipe(getUserByIdSchema))
   async update(
     @Param() params: { id: string },
     @Body(new ZodValidationPipe(updateUserSchema)) updateUserDto: UpdateUserDto,
+    @CurrentUser() currentUser: User,
   ) {
-    const user = await this.usersService.update(params.id, updateUserDto);
-    const { password, ...userResponse } = user;
-    return userResponse;
+    // 🔧 Check if user is updating their own profile
+    if (params.id !== currentUser.id) {
+      throw new Error('You can only update your own profile');
+    }
+
+    return this.usersService.update(params.id, updateUserDto);
   }
 
+  // 🔧 Allow users to delete their own account
   @Delete(':id')
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete user by ID' })
   @ApiParam({ name: 'id', description: 'User ID (UUID)', type: 'string' })
   @ApiResponse({ status: 204, description: 'User deleted successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Cannot delete other users' })
   @UsePipes(new ZodValidationPipe(getUserByIdSchema))
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param() params: { id: string }): Promise<void> {
-    await this.usersService.remove(params.id);
+  async remove(
+    @Param() params: { id: string },
+    @CurrentUser() currentUser: User,
+  ) {
+    // 🔧 Check if user is deleting their own account
+    if (params.id !== currentUser.id) {
+      throw new Error('You can only delete your own account');
+    }
+
+    return this.usersService.remove(params.id);
+  }
+
+  // 🔧 Add endpoint to get current user's profile
+  @Get('me/profile')
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'Current user profile',
+    schema: {
+      example: {
+        id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        name: 'John Doe',
+        email: 'john@example.com',
+        profile_image: 'https://example.com/profile.jpg',
+        bio: 'Health enthusiast',
+        health_goals: { weight_loss: true },
+        created_at: '2025-06-25T12:00:00.000Z',
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getCurrentUserProfile(@CurrentUser() currentUser: User) {
+    return this.usersService.findOne(currentUser.id);
   }
 }

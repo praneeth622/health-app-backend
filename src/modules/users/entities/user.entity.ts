@@ -8,14 +8,19 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  // 🔧 Add Supabase ID field
+  @Column({ type: 'uuid', unique: true, nullable: true })
+  supabase_id?: string;
+
   @Column({ type: 'varchar', length: 100 })
   name: string;
 
   @Column({ type: 'varchar', length: 150, unique: true })
   email: string;
 
-  @Column({ type: 'varchar', length: 255 })
-  password: string;
+  // 🔧 Make password optional (since Supabase handles it)
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  password?: string;
 
   @Column({ type: 'date', nullable: true })
   date_of_birth: Date;
@@ -46,6 +51,10 @@ export class User {
 
   @Column({ type: 'boolean', default: true })
   is_active: boolean;
+
+  // 🔧 Add auth source tracking
+  @Column({ type: 'enum', enum: ['local', 'supabase'], default: 'supabase' })
+  auth_source: 'local' | 'supabase';
 
   @OneToMany(() => HealthLog, (healthLog) => healthLog.user)
   health_logs: HealthLog[];
