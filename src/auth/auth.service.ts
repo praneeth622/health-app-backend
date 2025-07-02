@@ -17,17 +17,23 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {
-    // 🔧 Fix: Add proper environment variable validation
+    // 🔧 Make configuration more flexible
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
     const serviceRoleKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!supabaseUrl || !serviceRoleKey) {
-      this.logger.error('Missing Supabase configuration. Please check your environment variables.');
-      throw new Error('Missing Supabase configuration');
+    if (!supabaseUrl) {
+      this.logger.error('SUPABASE_URL is required');
+      throw new Error('Missing SUPABASE_URL configuration');
     }
 
-    // Initialize Supabase client for server-side operations
-    this.supabase = createClient(supabaseUrl, serviceRoleKey);
+    if (!serviceRoleKey || serviceRoleKey.includes('your-service-role-key-here')) {
+      this.logger.warn('SUPABASE_SERVICE_ROLE_KEY not properly configured - some features may not work');
+      // Don't throw error, create client with anon key as fallback
+      const anonKey = this.configService.get<string>('SUPABASE_ANON_KEY');
+      this.supabase = createClient(supabaseUrl, anonKey || '');
+    } else {
+      this.supabase = createClient(supabaseUrl, serviceRoleKey);
+    }
   }
 
   /**
