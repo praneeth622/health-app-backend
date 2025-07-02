@@ -9,6 +9,7 @@ import {
   GroupEvent,
   GroupEventParticipant,
 } from './entities/group.entity';
+import { AuthModule } from '../../auth/auth.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import {
       GroupEvent,
       GroupEventParticipant,
     ]),
+    AuthModule,
   ],
   controllers: [GroupsController],
   providers: [GroupsService],
