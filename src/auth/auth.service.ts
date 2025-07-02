@@ -138,12 +138,54 @@ export class AuthService {
           await this.deactivateUser(data.id);
           break;
         
+        case 'jwt.verification':
+          // JWT verification webhooks don't need user creation
+          this.logger.log(`JWT verification for user: ${data.id}`);
+          break;
+        
+        case 'user.sync':
+          // Try to fetch user from Supabase and create if needed
+          await this.syncUserFromSupabase(data.id);
+          break;
+        
         default:
           this.logger.warn(`Unhandled webhook event: ${event}`);
       }
     } catch (error) {
       this.logger.error(`Failed to handle webhook event ${event}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Sync user from Supabase by ID
+   */
+  private async syncUserFromSupabase(supabaseUserId: string): Promise<void> {
+    try {
+      // Check if user already exists
+      const existingUser = await this.userRepository.findOne({
+        where: { supabase_id: supabaseUserId },
+      });
+
+      if (existingUser) {
+        this.logger.log(`User already exists: ${supabaseUserId}`);
+        return;
+      }
+
+      // Try to fetch user from Supabase
+      const { data, error } = await this.supabase.auth.admin.getUserById(supabaseUserId);
+      
+      if (error || !data.user) {
+        this.logger.warn(`Could not fetch user from Supabase: ${supabaseUserId}`);
+        return;
+      }
+
+      // Create user in our database
+      await this.createUserFromSupabase(data.user);
+      this.logger.log(`Synced user from Supabase: ${supabaseUserId}`);
+    } catch (error) {
+      this.logger.error(`Failed to sync user from Supabase: ${supabaseUserId}`, error);
+      // Don't throw error to prevent webhook failures
     }
   }
 

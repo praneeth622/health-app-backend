@@ -71,19 +71,76 @@ export class AuthController {
         event = this.mapDatabaseEventToAuthEvent(payload.type);
         userData = payload.record || payload.old_record;
         this.logger.log(`Database webhook format detected: ${event}`);
+      } else if (payload.user_id && payload.claims) {
+        // 🔧 Supabase JWT webhook format
+        event = 'jwt.verification';
+        userData = {
+          id: payload.user_id,
+          claims: payload.claims,
+          authentication_method: payload.authentication_method
+        };
+        this.logger.log('Supabase JWT webhook format detected');
+        
+        // For JWT webhooks, we don't need to create users, just log and return success
+        this.logger.log(`JWT verification webhook for user: ${payload.user_id}`);
+        return { 
+          success: true, 
+          message: 'JWT webhook processed successfully',
+          event,
+          user_id: payload.user_id
+        };
       } else if (payload.id && payload.email) {
         // Direct user data - assume user.created
         event = 'user.created';
         userData = payload;
         this.logger.log('Direct user data format detected');
+      } else if (payload.user_id) {
+        // 🔧 Handle case where we only have user_id (might be a different event)
+        this.logger.log('Webhook with user_id only - fetching user data from Supabase');
+        try {
+          const user = await this.authService.getUserBySupabaseId(payload.user_id);
+          if (user) {
+            this.logger.log(`Found existing user for user_id: ${payload.user_id}`);
+            return { 
+              success: true, 
+              message: 'User already exists',
+              user_id: payload.user_id
+            };
+          } else {
+            // User doesn't exist in our DB, try to fetch from Supabase and create
+            event = 'user.sync';
+            userData = { id: payload.user_id };
+          }
+        } catch (error) {
+          this.logger.error(`Error checking user: ${error.message}`);
+          return { 
+            success: true, 
+            message: 'Webhook acknowledged but user check failed',
+            user_id: payload.user_id
+          };
+        }
       } else {
-        this.logger.error('Unknown webhook format');
-        this.logger.error(`Available payload keys: ${Object.keys(payload || {})}`);
-        throw new BadRequestException('Unknown webhook format - please check payload structure');
+        // 🔧 Handle unknown webhook format gracefully
+        this.logger.warn('Unknown webhook format - acknowledging to prevent retries');
+        this.logger.warn(`Available payload keys: ${Object.keys(payload || {})}`);
+        
+        // Return success to prevent Supabase from retrying
+        return { 
+          success: true, 
+          message: 'Unknown webhook format acknowledged',
+          payload_keys: Object.keys(payload || {}),
+          note: 'Webhook acknowledged to prevent retries'
+        };
       }
 
       if (!event || !userData) {
-        throw new BadRequestException(`Missing event (${event}) or user data`);
+        this.logger.warn(`Missing event (${event}) or user data - returning success to prevent retries`);
+        return { 
+          success: true, 
+          message: 'Incomplete webhook data acknowledged',
+          event,
+          userData: userData ? 'present' : 'missing'
+        };
       }
 
       // 🔧 Optional webhook secret verification (only if secret is configured)
@@ -114,7 +171,7 @@ export class AuthController {
     } catch (error) {
       this.logger.error('❌ Webhook processing failed:', error);
       
-      // 🔧 Don't throw error in production to avoid webhook retries
+      // 🔧 Always return success in production to prevent webhook retries
       if (this.configService.get('NODE_ENV') === 'production') {
         this.logger.error('Returning success to prevent webhook retries in production');
         return { 
@@ -124,7 +181,12 @@ export class AuthController {
         };
       }
       
-      throw error;
+      // In development, you can choose to throw or return success
+      return { 
+        success: false, 
+        message: 'Webhook processing failed',
+        error: error.message 
+      };
     }
   }
 
