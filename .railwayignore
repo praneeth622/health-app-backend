@@ -1,0 +1,21 @@
+# Railway ignore file
+node_modules/
+.git/
+.vscode/
+.idea/
+*.log
+.env
+.env.*
+!.env.example
+coverage/
+.nyc_output/
+dist/
+build/
+tmp/
+temp/
+.cache/
+.npm/
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db

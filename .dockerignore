@@ -12,3 +12,9 @@ Dockerfile
 .docker
 .vscode
 .idea
+*.log
+.npm
+.cache
+node_modules/.cache
+.eslintcache
+.parcel-cache
